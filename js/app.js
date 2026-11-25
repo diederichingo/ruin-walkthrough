@@ -183,6 +183,25 @@ function makeMaterials() {
   materials.pv = mat({ map: pvTex(), roughness: 0.18, metalness: 0.35 });
   materials.pvFrame = mat({ color: 0xb8bcc0, roughness: 0.3, metalness: 0.8 });
   materials.bottle = mat({ roughness: 0.12, metalness: 0.05, emissive: 0x111111, transparent: true, opacity: 0.92 });
+  materials.counter = mat({ map: tim, color: 0xc89a66, roughness: 0.6 });
+  materials.worktop = mat({ color: 0xd8d2c4, roughness: 0.45 });
+  materials.sink = mat({ color: 0xb9bcbe, roughness: 0.25, metalness: 0.85 });
+  materials.skin = mat({ color: 0xdcaa88, roughness: 0.75 });
+  materials.hair = mat({ color: 0x6a4d39, roughness: 0.85 });
+  materials.hairGrey = mat({ color: 0x9a8d80, roughness: 0.85 });
+  materials.trousers = mat({ color: 0x8a4a20, roughness: 0.85 });
+  materials.knit = mat({ map: noiseTex(64, [206, 150, 62], [178, 122, 44]), roughness: 0.95 });
+  materials.collar = mat({ color: 0xf0e3c6, roughness: 0.8, side: THREE.DoubleSide });
+  materials.shoe = mat({ color: 0x3b2417, roughness: 0.5 });
+  materials.hob = mat({ color: 0x111214, roughness: 0.15, metalness: 0.2 });
+  materials.hobRing = mat({ color: 0x8a3a2a, roughness: 0.4, emissive: 0x220806 });
+  materials.leather = mat({ color: 0x5a1c16, roughness: 0.42, metalness: 0.05 });
+  materials.leatherDark = mat({ color: 0x1e0806, roughness: 0.6 });
+  materials.brass = mat({ color: 0xc9a046, roughness: 0.3, metalness: 0.9 });
+  materials.walnut = mat({ map: tim, color: 0x7a4a2a, roughness: 0.45 });
+  materials.oak = mat({ map: tim, color: 0xe8cfa2, roughness: 0.6 });
+  materials.linen = mat({ color: 0xf1ece2, roughness: 0.9 });
+  materials.duvet = mat({ map: noiseTex(64, [190, 120, 60], [170, 102, 48]), roughness: 0.95 });
   materials.floor = mat({ map: noiseTex(128, [176, 168, 154], [150, 142, 128]), roughness: 0.9 });
   materials.ground = new THREE.MeshStandardMaterial({ map: noiseTex(256, [178, 164, 112], [140, 136, 88]), roughness: 1 });
   materials.ground.map.repeat.set(30, 30);
@@ -239,7 +258,7 @@ const P = (x, h, n) => new THREE.Vector3(x, h, -n);
 
 /* ---------- model ---------- */
 function buildModel() {
-  for (const k of ['walls', 'skins', 'ring', 'cob', 'steel', 'roof', 'pv', 'purlin', 'veranda', 'verandaRoof', 'openings', 'site']) {
+  for (const k of ['walls', 'skins', 'ring', 'cob', 'steel', 'roof', 'pv', 'purlin', 'veranda', 'verandaRoof', 'openings', 'site', 'furniture']) {
     groups[k] = new THREE.Group(); groups[k].name = k; scene.add(groups[k]);
   }
   const W = groups.walls;
@@ -316,6 +335,7 @@ function buildModel() {
   buildPV(groups.pv);
 
   buildVeranda(groups.veranda);
+  buildKitchen(groups.furniture);
   buildSite(groups.site);
 
   // Colliders (plan AABBs in world x/z)
@@ -323,6 +343,12 @@ function buildModel() {
   col(0, DOOR.x0, 0, T); col(DOOR.x1, L, 0, T);
   col(0, L, D - T, D); col(0, T, 0, D); col(L - T, L, 0, D);
   colliders.push({ x0: DOOR.x0, x1: DOOR.x1, z0: -0.2, z1: -0.1, ignore: () => door.open });
+  const furnOff = () => !groups.furniture.visible;
+  colliders.push({ x0: T, x1: 1.10, z0: -4.45, z1: -2.0, ignore: furnOff });         // kitchen run
+  colliders.push({ x0: T, x1: 2.36, z0: -1.36, z1: -T, ignore: furnOff });           // Chesterfield sofa
+  colliders.push({ x0: 1.15, x1: 1.95, z0: -2.15, z1: -1.65, ignore: furnOff });     // coffee table
+  colliders.push({ x0: 5.0, x1: L - T, z0: -(D - T), z1: -2.4, ignore: furnOff });   // bed platform
+  colliders.push({ x0: 1.10, x1: 1.62, z0: -2.72, z1: -2.28, ignore: furnOff });     // the woman at the sink
   for (const px of VER.posts) col(px - 0.075, px + 0.075, VER.postN - 0.075, VER.postN + 0.075);
 }
 
@@ -445,6 +471,217 @@ function buildVeranda(group) {
     }
   }
 }
+
+/* ---------- kitchen counter under the west window + a person for scale ---------- */
+function limb(group, a, b, r, mat, seg = 8) {
+  const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b);
+  const dir = B.clone().sub(A), len = dir.length();
+  const g = new THREE.CapsuleGeometry(r, Math.max(0.001, len), 4, seg);
+  const m = new THREE.Mesh(g, mat);
+  m.position.copy(A).add(B).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+  m.castShadow = true; m.receiveShadow = true;
+  group.add(m);
+  return m;
+}
+function taper(group, a, b, r0, r1, mat, sx = 1, sz = 1) {
+  // tapered cylinder from point a (radius r0) to b (radius r1), optional elliptic section
+  const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b);
+  const dir = B.clone().sub(A), len = dir.length();
+  const g = new THREE.CylinderGeometry(r1, r0, len, 14, 1);
+  g.scale(sx, 1, sz);
+  const m = new THREE.Mesh(g, mat);
+  m.position.copy(A).add(B).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+  m.castShadow = true; m.receiveShadow = true;
+  group.add(m);
+  return m;
+}
+function buildKitchen(F) {
+  // 0.90 m counter along the inside of the west wall, sink centred under the window
+  const n0 = 2.0, n1 = 4.45, x0 = T, x1 = T + 0.60, top = 0.90;
+  add(F, boxG(x0, x1 - 0.02, n0, n1, 0.10, top - 0.04), materials.counter, 1);
+  add(F, boxG(x0, x1 - 0.06, n0, n1, 0.0, 0.10), materials.frame, 1);
+  for (let n = n0 + 0.55; n < n1 - 0.1; n += 0.55) add(F, boxG(x1 - 0.021, x1 - 0.015, n - 0.004, n + 0.004, 0.14, top - 0.08), materials.frame, 1);
+  // worktop with a sink cut-out (four pieces around the bowl)
+  const sn0 = 2.15, sn1 = 2.85, sx0 = T + 0.10, sx1 = T + 0.50;
+  add(F, boxG(x0, x1 + 0.02, n0, sn0, top - 0.04, top), materials.worktop, 1);
+  add(F, boxG(x0, x1 + 0.02, sn1, n1, top - 0.04, top), materials.worktop, 1);
+  add(F, boxG(x0, sx0, sn0, sn1, top - 0.04, top), materials.worktop, 1);
+  add(F, boxG(sx1, x1 + 0.02, sn0, sn1, top - 0.04, top), materials.worktop, 1);
+  add(F, boxG(sx0, sx1, sn0, sn1, top - 0.20, top - 0.19), materials.sink, 1);
+  add(F, boxG(sx0, sx0 + 0.01, sn0, sn1, top - 0.20, top - 0.01), materials.sink, 1);
+  add(F, boxG(sx1 - 0.01, sx1, sn0, sn1, top - 0.20, top - 0.01), materials.sink, 1);
+  add(F, boxG(sx0, sx1, sn0, sn0 + 0.01, top - 0.20, top - 0.01), materials.sink, 1);
+  add(F, boxG(sx0, sx1, sn1 - 0.01, sn1, top - 0.20, top - 0.01), materials.sink, 1);
+  // simple two-ring ceramic hob near the north end
+  add(F, boxG(T + 0.08, T + 0.52, 3.65, 4.25, top, top + 0.008), materials.hob, 1);
+  for (const [hx, hn, hr] of [[T + 0.30, 3.80, 0.09], [T + 0.30, 4.08, 0.07]]) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(hr, 0.004, 4, 32), materials.hobRing);
+    ring.rotation.x = Math.PI / 2; ring.position.copy(P(hx, top + 0.009, hn)); F.add(ring);
+  }
+  // tap
+  limb(F, [T + 0.06, top, -2.5], [T + 0.06, top + 0.26, -2.5], 0.014, materials.sink);
+  limb(F, [T + 0.06, top + 0.26, -2.5], [T + 0.22, top + 0.24, -2.5], 0.012, materials.sink);
+  buildWoman(F);
+  buildChesterfield(F);
+  buildCoffeeTable(F);
+  buildBed(F);
+}
+
+/* ---------- living: Chesterfield, coffee table, raised bed ---------- */
+function buildChesterfield(F) {
+  // Two-seat English Chesterfield in the south-west corner, back to the front wall (below the 1.10 sill),
+  // facing north into the room. High back and arms at the same height, rolled tops, deep buttoning, brass nailheads.
+  const x0 = 0.56, x1 = 2.32, n0 = 0.53, n1 = 1.35, M = materials;
+  const armW = 0.24, backD = 0.24, top = 0.80, base = 0.11, seat = 0.46;
+  add(F, boxG(x0, x1, n0, n1, base, seat - 0.12), M.leather, 1);                         // seat box
+  for (const [a, b] of [[x0 + armW, (x0 + x1) / 2 - 0.005], [(x0 + x1) / 2 + 0.005, x1 - armW]]) {
+    add(F, boxG(a, b, n0 + backD, n1 - 0.02, seat - 0.12, seat), M.leather, 1);           // two cushions
+  }
+  add(F, boxG(x0, x1, n0, n0 + backD, base, top - 0.07), M.leather, 1);                  // back
+  limb(F, [x0 + 0.08, top - 0.07, -(n0 + backD / 2)], [x1 - 0.08, top - 0.07, -(n0 + backD / 2)], backD / 2 + 0.01, M.leather, 14);
+  for (const [a, b] of [[x0, x0 + armW], [x1 - armW, x1]]) {
+    add(F, boxG(a, b, n0, n1, base, top - 0.08), M.leather, 1);                          // arms
+    const mid = (a + b) / 2, out = a < 1 ? -1 : 1;
+    limb(F, [mid + out * 0.02, top - 0.07, -(n0 + 0.1)], [mid + out * 0.02, top - 0.07, -(n1 - 0.02)], armW / 2 + 0.025, M.leather, 14);
+    // scroll face on the front of the roll
+    const sc = new THREE.Mesh(new THREE.CircleGeometry(armW / 2 + 0.02, 20), M.leatherDark);
+    sc.position.copy(P(mid + out * 0.02, top - 0.07, n1 + 0.0 + 0.004 + 0.123)); sc.rotation.y = 0;
+  }
+  // deep buttons: diamond grid on the inside of the back and arms
+  const btn = new THREE.SphereGeometry(0.019, 8, 6);
+  const btns = [];
+  for (let r = 0; r < 3; r++) {
+    for (let x = x0 + armW + 0.08 + (r % 2) * 0.07; x < x1 - armW - 0.04; x += 0.14) btns.push(P(x, seat + 0.06 + r * 0.09, n0 + backD + 0.003));
+    for (let n = n0 + backD + 0.08 + (r % 2) * 0.07; n < n1 - 0.06; n += 0.14) {
+      btns.push(P(x0 + armW + 0.003, seat + 0.05 + r * 0.08, n));
+      btns.push(P(x1 - armW - 0.003, seat + 0.05 + r * 0.08, n));
+    }
+  }
+  for (let x = x0 + 0.08; x < x1 - 0.05; x += 0.14) for (let k = 0; k < 2; k++) btns.push(P(x + k * 0.07, top - 0.22 - k * 0.06, n0 - 0.003));
+  const bi = new THREE.InstancedMesh(btn, M.leatherDark, btns.length);
+  btns.forEach((v, i) => bi.setMatrixAt(i, new THREE.Matrix4().makeTranslation(v.x, v.y, v.z)));
+  F.add(bi);
+  // brass nailhead trim: along the base front and up the arm fronts
+  const nails = [];
+  for (let x = x0 + 0.01; x <= x1 - 0.01; x += 0.025) nails.push(P(x, base + 0.025, n1 + 0.004));
+  for (const ax of [x0, x1 - armW]) {
+    for (let h = base + 0.05; h < top - 0.2; h += 0.025) { nails.push(P(ax + 0.012, h, n1 + 0.004)); nails.push(P(ax + armW - 0.012, h, n1 + 0.004)); }
+    for (let x = ax + 0.012; x < ax + armW; x += 0.025) nails.push(P(x, top - 0.2, n1 + 0.004));
+  }
+  const ni = new THREE.InstancedMesh(new THREE.SphereGeometry(0.0065, 6, 4), M.brass, nails.length);
+  nails.forEach((v, i) => ni.setMatrixAt(i, new THREE.Matrix4().makeTranslation(v.x, v.y, v.z)));
+  F.add(ni);
+  // turned bun feet
+  for (const [fx, fn] of [[x0 + 0.06, n0 + 0.06], [x1 - 0.06, n0 + 0.06], [x0 + 0.06, n1 - 0.06], [x1 - 0.06, n1 - 0.06]]) {
+    const ft = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 8), M.walnut);
+    ft.scale.set(1, 1.0, 1); ft.position.copy(P(fx, 0.055, fn)); ft.castShadow = true; F.add(ft);
+  }
+}
+function buildCoffeeTable(F) {
+  // Antique walnut coffee table: moulded top, shaped apron, turned legs, stretcher shelf.
+  const x0 = 1.15, x1 = 1.95, n0 = 1.65, n1 = 2.15, h = 0.46, M = materials;
+  add(F, boxG(x0, x1, n0, n1, h - 0.035, h), M.walnut, 0.6);
+  add(F, boxG(x0 + 0.015, x1 - 0.015, n0 + 0.015, n1 - 0.015, h - 0.05, h - 0.035), M.walnut, 0.6);
+  add(F, boxG(x0 + 0.05, x1 - 0.05, n0 + 0.05, n1 - 0.05, h - 0.13, h - 0.05), M.walnut, 0.6);
+  add(F, boxG(x0 + 0.07, x1 - 0.07, n0 + 0.07, n1 - 0.07, 0.10, 0.12), M.walnut, 0.6);
+  const prof = [[0.0, 0], [0.022, 0], [0.026, 0.03], [0.016, 0.06], [0.02, 0.12], [0.03, 0.17], [0.018, 0.22], [0.014, 0.28], [0.024, 0.31], [0.024, 0.34], [0.0, 0.34]]
+    .map(([r, y]) => new THREE.Vector2(r, y));
+  for (const [lx, ln] of [[x0 + 0.06, n0 + 0.06], [x1 - 0.06, n0 + 0.06], [x0 + 0.06, n1 - 0.06], [x1 - 0.06, n1 - 0.06]]) {
+    const lg = new THREE.Mesh(new THREE.LatheGeometry(prof, 16), M.walnut);
+    lg.position.copy(P(lx, 0, ln)); lg.castShadow = true; F.add(lg);
+  }
+  // a book and a cup for scale
+  add(F, boxG(1.30, 1.52, 1.78, 1.93, h, h + 0.03), materials.trousers, 1);
+  const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.034, 0.08, 16), materials.linen);
+  cup.position.copy(P(1.72, h + 0.04, 1.95)); F.add(cup);
+}
+function buildBed(F) {
+  // Raised bed on the east side, head against the north wall, clear of the door swing.
+  // Platform 0.55 m with drawers (west face) and open cubbies (south face); mattress 1.40 x 2.00.
+  const x0 = 5.0, x1 = L - T, n0 = 2.4, n1 = D - T, ph = 0.55, M = materials;
+  add(F, boxG(x0, x1, n0, n1, 0.0, ph), M.oak, 1);
+  for (let i = 0; i < 3; i++) for (let r = 0; r < 2; r++) {                                // 6 drawers
+    const a = n0 + 0.06 + i * 0.66, b = a + 0.62, h0 = 0.05 + r * 0.25;
+    add(F, boxG(x0 - 0.012, x0, a, b, h0, h0 + 0.22), M.counter, 1);
+    limb(F, [x0 - 0.03, h0 + 0.11, -(a + 0.24)], [x0 - 0.03, h0 + 0.11, -(b - 0.24)], 0.008, M.brass);
+  }
+  for (let i = 0; i < 3; i++) add(F, boxG(x0 + 0.05 + i * 0.48, x0 + 0.47 + i * 0.48, n0 - 0.001, n0 + 0.35, 0.06, ph - 0.06), M.frame, 1); // cubbies
+  add(F, boxG(x0 + 0.05, x1 - 0.05, n0 + 0.05, n1 - 0.03, ph, ph + 0.20), M.linen, 1);    // mattress 1.40 x 2.00 (approx.)
+  add(F, boxG(x0 + 0.03, x1 - 0.03, n0 + 0.03, n0 + 1.35, ph + 0.20, ph + 0.24), M.duvet, 1);
+  add(F, boxG(x0 + 0.03, x0 + 0.05, n0 + 0.03, n0 + 1.35, ph + 0.05, ph + 0.24), M.duvet, 1);
+  add(F, boxG(x0 + 0.03, x1 - 0.03, n0 + 0.03, n0 + 0.05, ph + 0.05, ph + 0.24), M.duvet, 1);
+  for (const px of [x0 + 0.40, x1 - 0.40]) {
+    const pl = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 10), M.linen);
+    pl.scale.set(1.05, 0.22, 0.6); pl.position.copy(P(px, ph + 0.25, n1 - 0.28)); pl.castShadow = true; F.add(pl);
+  }
+  add(F, boxG(x0, x1, n1 - 0.04, n1, ph, ph + 0.70), M.oak, 1);                            // headboard
+}
+function buildWoman(F) {
+  // ~1.68 m, about 40, 1970s: high-waisted rust flares, ochre knit with a wide cream collar.
+  // Built facing +X, then turned to face west (−X) towards the window. Weight on her left leg.
+  const g = new THREE.Group();
+  const M = materials;
+  // shoes (small platform)
+  limb(g, [0.02, 0.035, 0.085], [0.12, 0.035, 0.09], 0.035, M.shoe);
+  limb(g, [0.0, 0.035, -0.10], [0.10, 0.035, -0.12], 0.035, M.shoe);
+  // flared trousers: wide at the hem, slim at the knee, high waist at 1.02
+  taper(g, [0.05, 0.06, 0.085], [0.03, 0.50, 0.08], 0.115, 0.062, M.trousers);
+  taper(g, [0.03, 0.50, 0.08], [0.0, 0.86, 0.075], 0.062, 0.088, M.trousers);
+  taper(g, [0.04, 0.06, -0.11], [0.04, 0.50, -0.085], 0.115, 0.062, M.trousers);
+  taper(g, [0.04, 0.50, -0.085], [0.0, 0.86, -0.075], 0.062, 0.088, M.trousers);
+  taper(g, [0.0, 0.84, 0], [0.0, 1.03, 0], 0.175, 0.135, M.trousers, 0.72, 1);   // hips to high waist
+  limb(g, [0.10, 1.0, -0.06], [0.10, 1.0, 0.06], 0.012, M.shoe);                  // belt hint
+  // knit top: waist → bust → shoulders
+  taper(g, [0.0, 1.01, 0], [0.01, 1.22, 0], 0.13, 0.155, M.knit, 0.68, 1);
+  taper(g, [0.01, 1.22, 0], [0.0, 1.40, 0], 0.155, 0.16, M.knit, 0.66, 1);
+  for (const sd of [-1, 1]) { const so = new THREE.Mesh(new THREE.SphereGeometry(0.048, 12, 10), M.knit); so.position.set(0, 1.385, sd * 0.15); so.castShadow = true; g.add(so); }
+  // wide 70s collar, two flat points on the chest
+  for (const sd of [-1, 1]) {
+    const cg = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0.05, 1.45, sd * 0.035), new THREE.Vector3(0.115, 1.30, sd * 0.09), new THREE.Vector3(0.07, 1.43, sd * 0.13),
+    ]);
+    cg.computeVertexNormals();
+    const cm = new THREE.Mesh(cg, M.collar); cm.castShadow = true; g.add(cm);
+  }
+  // neck and head (slight turn and tilt, looking out of the window)
+  limb(g, [0.0, 1.43, 0], [0.01, 1.51, 0], 0.034, M.skin);
+  const head = new THREE.Group();
+  head.position.set(0.015, 1.575, 0);
+  head.rotation.set(0.05, 0.08, -0.04);
+  const hm = new THREE.Mesh(new THREE.SphereGeometry(0.092, 20, 16), M.skin);
+  hm.scale.set(1.0, 1.15, 0.88); hm.castShadow = true; head.add(hm);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.035, 8), M.skin);
+  nose.rotation.z = -Math.PI / 2; nose.position.set(0.095, 0.0, 0); head.add(nose);
+  // hair: cap over the back and top, shoulder-length fall, loosely tied knot, a few grey strands
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.1, 20, 16, Math.PI * 1.3, Math.PI * 1.4, 0, Math.PI * 0.6), M.hair);
+  hair.scale.set(1.06, 1.2, 0.97); hair.position.set(-0.012, 0.01, 0); hair.material.side = THREE.DoubleSide; hair.castShadow = true; head.add(hair);
+  const fall = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.095, 0.16, 16, 1, true, Math.PI * 0.75, Math.PI * 1.5), M.hair);
+  fall.position.set(-0.02, -0.08, 0); fall.castShadow = true; head.add(fall);
+  const fringe = new THREE.Mesh(new THREE.SphereGeometry(0.1, 20, 8, Math.PI * 0.62, Math.PI * 0.76, 0, Math.PI * 0.2), M.hair);
+  fringe.scale.set(1.04, 1.18, 0.95); head.add(fringe);
+  const knot = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 10), M.hair);
+  knot.position.set(-0.10, -0.06, 0); head.add(knot);
+  for (const [y, z] of [[0.07, 0.03], [0.05, -0.05], [0.02, 0.07]]) {
+    const st = new THREE.Mesh(new THREE.TorusGeometry(0.098, 0.004, 4, 16, Math.PI * 0.9), M.hairGrey);
+    st.rotation.set(0, Math.PI / 2, 0); st.position.set(-0.01, y - 0.03, z * 0.2); st.rotation.x = z * 3; head.add(st);
+  }
+  g.add(head);
+  // arms: relaxed, both forearms reaching forward to the sink edge
+  const sh = 0.165;
+  limb(g, [0.0, 1.39, sh], [0.08, 1.14, sh + 0.03], 0.036, M.knit);              // left upper arm
+  limb(g, [0.08, 1.14, sh + 0.03], [0.30, 0.98, 0.13], 0.030, M.knit);            // left forearm (sleeve)
+  limb(g, [0.30, 0.98, 0.13], [0.36, 0.95, 0.10], 0.026, M.skin);                // left hand
+  limb(g, [0.0, 1.39, -sh], [0.06, 1.13, -sh - 0.03], 0.036, M.knit);            // right upper arm
+  limb(g, [0.06, 1.13, -sh - 0.03], [0.28, 0.99, -0.12], 0.030, M.knit);         // right forearm
+  limb(g, [0.28, 0.99, -0.12], [0.35, 0.95, -0.09], 0.026, M.skin);              // right hand
+  // face the window: local +X → world −X; stand ~0.28 m back from the worktop edge
+  g.rotation.y = Math.PI;
+  g.position.copy(P(1.10 + 0.36, 0, 2.5));
+  g.name = 'woman';
+  F.add(g);
+}
 function buildSite(group) {
   const g = new THREE.CircleGeometry(60, 64);
   g.rotateX(-Math.PI / 2);
@@ -481,6 +718,10 @@ const LABELS = [
   { t: 'Bottles in clay, 0.40', p: [7.02, ringTop(2.5) + 0.2, 2.5] },
   { t: 'Veranda edge 2.40', p: [7.5, 2.40, -2.0] },
   { t: '2.10 clear', p: [5.2, 1.4, -1.925] },
+  { t: 'Counter 0.90', p: [1.10, 0.92, 3.4] },
+  { t: 'Bed platform 0.55', p: [5.0, 0.58, 2.4] },
+  { t: 'Chesterfield', p: [1.44, 0.85, 1.35] },
+  { t: 'Person 1.68', p: [1.46, 1.72, 2.5] },
   { t: 'Glulam purlin 160 × 280', p: [3.5, u(2.5) - 0.3, 2.5] },
 ];
 function buildHud() {
@@ -583,6 +824,10 @@ function setStructure(v) {
   groups.cob.visible = !v;
   document.getElementById('btnStructure').setAttribute('aria-pressed', String(v));
 }
+function setFurniture(v) {
+  groups.furniture.visible = v;
+  document.getElementById('btnFurniture').setAttribute('aria-pressed', String(v));
+}
 function setHeights(v) {
   heightsOn = v;
   document.getElementById('btnHeights').setAttribute('aria-pressed', String(v));
@@ -597,6 +842,8 @@ const VIEWS = [
   { name: 'Roof and PV from above', sub: '', cam: [3.5, 14, 5], t: [3.5, 2.5, -2.0] },
   { name: 'Inside: look at the purlin and bottles', walk: [5.6, 4.0, -2.35, 0.32] },
   { name: 'Inside: west window', walk: [5.4, 2.5, -1.57, 0.05] },
+  { name: 'Inside: kitchen sink', walk: [4.3, 3.9, -2.05, -0.08] },
+  { name: 'Inside: whole room', walk: [6.25, 0.75, -0.86, -0.2] },
   { name: 'Veranda: walk to the door', walk: [3.95, -4.0, 0, 0.02] },
 ];
 function flyTo(cam, t, dur = 0.8) {
@@ -754,6 +1001,7 @@ function bindUI() {
   document.getElementById('btnRoof').onclick = () => setRoof(!groups.roof.visible);
   document.getElementById('btnVeranda').onclick = () => setVeranda(!groups.veranda.visible);
   document.getElementById('btnStructure').onclick = () => setStructure(!structureOn);
+  document.getElementById('btnFurniture').onclick = () => setFurniture(!groups.furniture.visible);
   document.getElementById('btnHeights').onclick = () => setHeights(!heightsOn);
   document.getElementById('btnCut').onclick = () => setCut(cutMode === 'off' ? 'plan' : cutMode === 'plan' ? 'section' : 'off');
   document.getElementById('togglePanel').onclick = () => document.getElementById('panel').classList.toggle('hidden');
@@ -823,7 +1071,7 @@ try { init(); } catch (err) { console.error(err); loading.textContent = 'Could n
 
 window.__ruin = {
   ready: () => !!renderer,
-  setMode, setCut, setRoof, setVeranda, setStructure, setHeights, goView: (i) => goView(VIEWS[i]),
+  setMode, setCut, setRoof, setVeranda, setStructure, setHeights, setFurniture, goView: (i) => goView(VIEWS[i]),
   setOrbit(x, y, z, tx, ty, tz) { if (mode !== 'orbit') setMode('orbit', { keep: true }); fly = null; camera.position.set(x, y, z); orbit.target.set(tx, ty, tz); orbit.update(); },
   setPlayer(x, n, yw, pt) { player.set(x, EYE, -n); yaw = yw; pitch = pt; },
   getPlayer: () => ({ x: player.x, n: -player.z }),
@@ -831,4 +1079,5 @@ window.__ruin = {
   setSun(date, time) { document.getElementById('sunDate').value = date; document.getElementById('sunTime').value = time; applySun(); },
   hidePanel(v = true) { document.getElementById('panel').classList.toggle('hidden', v); },
   toggleDoor: () => toggleDoor(),
+  setDoor(v) { if (door.open !== v) toggleDoor(); door.angle = door.target; door.pivot.rotation.y = door.angle; },
 };
