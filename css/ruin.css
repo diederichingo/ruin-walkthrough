@@ -1,0 +1,5 @@
+#confirmed { margin: 0; padding-left: 18px; }
+#confirmed li { margin: 0 0 4px; font-size: 12px; }
+#presets button { text-align: left; }
+.tool#btnCut[aria-pressed="true"] { background: #2f6f8f; }
+body.walk.touch #compass { bottom: calc(160px + var(--safe)); }

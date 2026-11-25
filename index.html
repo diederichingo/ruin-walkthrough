@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#1b1916">
+  <title>Ruin renovation, Monsanto: 3D walkthrough</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css?v=1">
+  <link rel="stylesheet" href="css/ruin.css?v=1">
+</head>
+<body>
+  <div id="loading">Loading the ruin…</div>
+  <canvas id="c"></canvas>
+  <div id="ui">
+    <header class="top">
+      <h1>Ruin renovation, Monsanto
+        <span>3D walkthrough · v1 · sketch, not for construction</span>
+      </h1>
+      <div class="modes" role="group" aria-label="View mode">
+        <button id="btnOrbit" aria-pressed="true">Orbit</button>
+        <button id="btnWalk" aria-pressed="false">Walk</button>
+      </div>
+      <div class="tools">
+        <button class="tool" id="btnRoof" aria-pressed="true">Roof</button>
+        <button class="tool" id="btnVeranda" aria-pressed="true">Veranda</button>
+        <button class="tool" id="btnStructure" aria-pressed="false">Steel + ring</button>
+        <button class="tool" id="btnCut" aria-pressed="false">Cut: off</button>
+        <button class="tool" id="btnHeights" aria-pressed="false">Heights</button>
+      </div>
+    </header>
+    <button id="togglePanel" aria-label="Toggle panel">i</button>
+    <aside id="panel">
+      <h2>Views</h2>
+      <div id="presets"></div>
+
+      <h2>Sun · Monsanto</h2>
+      <div class="row">
+        <div>
+          <label for="sunDate">Date</label>
+          <input id="sunDate" type="date" value="2026-11-25">
+        </div>
+        <div>
+          <label for="sunTime">Time (Europe/Lisbon)</label>
+          <input id="sunTime" type="time" value="14:00">
+        </div>
+      </div>
+      <label for="sunSlider">Time of day</label>
+      <input id="sunSlider" type="range" min="0" max="1439" value="840">
+      <div id="sunReadout">—</div>
+
+      <p class="raise-note">Sloped ring beam: 2.10–2.35 m over the door and windows, climbing the side walls to about 3.25 m on the back wall. About 0.40 m band of bottles in clay all round under the roof.</p>
+
+      <h2>Agreed</h2>
+      <ol id="confirmed">
+        <li>Stone house 7 × 5 m outside, 0.5 m walls, room 6 × 4 m.</li>
+        <li>Front faces south. Door 0.9 × 2.10 m, left post at the middle of the front wall.</li>
+        <li>Front window 1.5 × 1.0 m in the left half; same window in the west wall. Heads at 2.10 m, concrete sills under.</li>
+        <li>RC ring beam 250 × 250: 2.10–2.35 m at the front, about 2.98–3.23 m at the back.</li>
+        <li>Welded steel rail on short posts on the ring, bottles in clay between.</li>
+        <li>Single-pitch roof, about 10° (17.5 %), falling south. Underside 2.75 m at the front wall, 3.63 m at the back.</li>
+        <li>Sandwich panels with PV on top; 0.5 m overhang east, west and north.</li>
+        <li>Glulam middle purlin 160 × 280, east–west.</li>
+        <li>Veranda 2 m deep: glulam beam 120 × 200, 2.10 m clear, edge about 2.40 m. Three 150 × 150 posts, end posts set in 0.5 m, 45° braces flush with the beam ends.</li>
+      </ol>
+
+      <h2>Assumed</h2>
+      <ol id="assumptions">
+        <li>Ring beam centred in the 0.5 m wall; clay-bottle band 0.30 m thick.</li>
+        <li>Steel rail 100 × 100 tube on 60 × 60 posts at about 1.2 m.</li>
+        <li>Sandwich panels 80 mm; PV layout (18 panels) only for the look.</li>
+        <li>West window centred on the west wall.</li>
+        <li>Packer strip on top of the veranda beam to meet the roof slope.</li>
+        <li>Level site, floor at ground level, no gutters, flashings or furniture.</li>
+        <li>World axes: +X east, +Y up, −Z north. Eye height 1.70 m.</li>
+      </ol>
+    </aside>
+    <div id="hudLabels"></div>
+    <div id="compass" title="North">
+      <div class="compass-bezel">
+        <div id="compassRose" class="compass-rose">
+          <span class="tick n">N</span>
+          <span class="tick e">E</span>
+          <span class="tick s">S</span>
+          <span class="tick w">W</span>
+        </div>
+        <div class="compass-view" aria-hidden="true"></div>
+      </div>
+    </div>
+    <div id="hint">Orbit: drag to look, scroll or pinch to zoom. Tap the door to open it.</div>
+    <div id="joy"><div class="knob"></div></div>
+  </div>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three.module.js",
+      "three/addons/controls/OrbitControls.js": "./vendor/OrbitControls.js"
+    }
+  }
+  </script>
+  <script type="module" src="js/app.js?v=1"></script>
+</body>
+</html>
