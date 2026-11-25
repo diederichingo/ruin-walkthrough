@@ -344,11 +344,11 @@ function buildModel() {
   col(0, L, D - T, D); col(0, T, 0, D); col(L - T, L, 0, D);
   colliders.push({ x0: DOOR.x0, x1: DOOR.x1, z0: -0.2, z1: -0.1, ignore: () => door.open });
   const furnOff = () => !groups.furniture.visible;
-  colliders.push({ x0: T, x1: 1.10, z0: -4.45, z1: -2.0, ignore: furnOff });         // kitchen run
-  colliders.push({ x0: T, x1: 2.36, z0: -1.36, z1: -T, ignore: furnOff });           // Chesterfield sofa
-  colliders.push({ x0: 1.15, x1: 1.95, z0: -2.15, z1: -1.65, ignore: furnOff });     // coffee table
+  colliders.push({ x0: T, x1: 3.40, z0: -1.12, z1: -T, ignore: furnOff });           // kitchen run (south wall)
+  colliders.push({ x0: T, x1: 1.36, z0: -3.38, z1: -1.62, ignore: furnOff });        // Chesterfield sofa (west wall)
+  colliders.push({ x0: 1.65, x1: 2.15, z0: -2.90, z1: -2.10, ignore: furnOff });     // coffee table
   colliders.push({ x0: 5.0, x1: L - T, z0: -(D - T), z1: -2.4, ignore: furnOff });   // bed platform
-  colliders.push({ x0: 1.10, x1: 1.62, z0: -2.72, z1: -2.28, ignore: furnOff });     // the woman at the sink
+  colliders.push({ x0: 2.0, x1: 2.5, z0: -1.62, z1: -1.10, ignore: furnOff });       // the woman at the sink
   for (const px of VER.posts) col(px - 0.075, px + 0.075, VER.postN - 0.075, VER.postN + 0.075);
 }
 
@@ -498,34 +498,44 @@ function taper(group, a, b, r0, r1, mat, sx = 1, sz = 1) {
   return m;
 }
 function buildKitchen(F) {
-  // 0.90 m counter along the inside of the west wall, sink centred under the window
-  const n0 = 2.0, n1 = 4.45, x0 = T, x1 = T + 0.60, top = 0.90;
-  add(F, boxG(x0, x1 - 0.02, n0, n1, 0.10, top - 0.04), materials.counter, 1);
-  add(F, boxG(x0, x1 - 0.06, n0, n1, 0.0, 0.10), materials.frame, 1);
-  for (let n = n0 + 0.55; n < n1 - 0.1; n += 0.55) add(F, boxG(x1 - 0.021, x1 - 0.015, n - 0.004, n + 0.004, 0.14, top - 0.08), materials.frame, 1);
-  // worktop with a sink cut-out (four pieces around the bowl)
-  const sn0 = 2.15, sn1 = 2.85, sx0 = T + 0.10, sx1 = T + 0.50;
-  add(F, boxG(x0, x1 + 0.02, n0, sn0, top - 0.04, top), materials.worktop, 1);
-  add(F, boxG(x0, x1 + 0.02, sn1, n1, top - 0.04, top), materials.worktop, 1);
-  add(F, boxG(x0, sx0, sn0, sn1, top - 0.04, top), materials.worktop, 1);
-  add(F, boxG(sx1, x1 + 0.02, sn0, sn1, top - 0.04, top), materials.worktop, 1);
+  // 0.90 m kitchen run along the inside of the SOUTH wall, west of the door (clear of the door swing),
+  // sink centred under the front window (sill 1.10), hob at the west end.
+  const x0 = T, x1 = 3.40, n0 = T, n1 = T + 0.60, top = 0.90;
+  add(F, boxG(x0, x1, n0, n1 - 0.02, 0.10, top - 0.04), materials.counter, 1);
+  add(F, boxG(x0, x1, n0, n1 - 0.06, 0.0, 0.10), materials.frame, 1);
+  for (let x = x0 + 0.6; x < x1 - 0.1; x += 0.6) add(F, boxG(x - 0.004, x + 0.004, n1 - 0.021, n1 - 0.015, 0.14, top - 0.08), materials.frame, 1);
+  // worktop with a sink cut-out
+  const sx0 = 1.90, sx1 = 2.60, sn0 = T + 0.10, sn1 = T + 0.50;
+  add(F, boxG(x0, sx0, n0, n1 + 0.02, top - 0.04, top), materials.worktop, 1);
+  add(F, boxG(sx1, x1, n0, n1 + 0.02, top - 0.04, top), materials.worktop, 1);
+  add(F, boxG(sx0, sx1, n0, sn0, top - 0.04, top), materials.worktop, 1);
+  add(F, boxG(sx0, sx1, sn1, n1 + 0.02, top - 0.04, top), materials.worktop, 1);
   add(F, boxG(sx0, sx1, sn0, sn1, top - 0.20, top - 0.19), materials.sink, 1);
   add(F, boxG(sx0, sx0 + 0.01, sn0, sn1, top - 0.20, top - 0.01), materials.sink, 1);
   add(F, boxG(sx1 - 0.01, sx1, sn0, sn1, top - 0.20, top - 0.01), materials.sink, 1);
   add(F, boxG(sx0, sx1, sn0, sn0 + 0.01, top - 0.20, top - 0.01), materials.sink, 1);
   add(F, boxG(sx0, sx1, sn1 - 0.01, sn1, top - 0.20, top - 0.01), materials.sink, 1);
-  // simple two-ring ceramic hob near the north end
-  add(F, boxG(T + 0.08, T + 0.52, 3.65, 4.25, top, top + 0.008), materials.hob, 1);
-  for (const [hx, hn, hr] of [[T + 0.30, 3.80, 0.09], [T + 0.30, 4.08, 0.07]]) {
+  // two-ring hob at the west end
+  add(F, boxG(0.62, 1.22, T + 0.08, T + 0.52, top, top + 0.008), materials.hob, 1);
+  for (const [hx, hn, hr] of [[0.78, T + 0.30, 0.09], [1.06, T + 0.30, 0.07]]) {
     const ring = new THREE.Mesh(new THREE.TorusGeometry(hr, 0.004, 4, 32), materials.hobRing);
     ring.rotation.x = Math.PI / 2; ring.position.copy(P(hx, top + 0.009, hn)); F.add(ring);
   }
-  // tap
-  limb(F, [T + 0.06, top, -2.5], [T + 0.06, top + 0.26, -2.5], 0.014, materials.sink);
-  limb(F, [T + 0.06, top + 0.26, -2.5], [T + 0.22, top + 0.24, -2.5], 0.012, materials.sink);
+  // tap at the wall side of the sink
+  limb(F, [2.25, top, -(T + 0.06)], [2.25, top + 0.26, -(T + 0.06)], 0.014, materials.sink);
+  limb(F, [2.25, top + 0.26, -(T + 0.06)], [2.25, top + 0.24, -(T + 0.22)], 0.012, materials.sink);
   buildWoman(F);
-  buildChesterfield(F);
-  buildCoffeeTable(F);
+  // Chesterfield and coffee table: built facing north, then turned to face east, back to the west wall
+  const sofa = new THREE.Group(), sofaIn = new THREE.Group();
+  buildChesterfield(sofaIn);
+  sofaIn.position.set(-1.44, 0, 0.53);          // back-centre of the sofa to the origin
+  sofa.add(sofaIn); sofa.rotation.y = -Math.PI / 2; sofa.position.copy(P(0.53, 0, 2.5));
+  F.add(sofa);
+  const table = new THREE.Group(), tableIn = new THREE.Group();
+  buildCoffeeTable(tableIn);
+  tableIn.position.set(-1.55, 0, 1.90);         // table centre to the origin
+  table.add(tableIn); table.rotation.y = -Math.PI / 2; table.position.copy(P(1.90, 0, 2.5));
+  F.add(table);
   buildBed(F);
 }
 
@@ -677,8 +687,8 @@ function buildWoman(F) {
   limb(g, [0.06, 1.13, -sh - 0.03], [0.28, 0.99, -0.12], 0.030, M.knit);         // right forearm
   limb(g, [0.28, 0.99, -0.12], [0.35, 0.95, -0.09], 0.026, M.skin);              // right hand
   // face the window: local +X → world −X; stand ~0.28 m back from the worktop edge
-  g.rotation.y = Math.PI;
-  g.position.copy(P(1.10 + 0.36, 0, 2.5));
+  g.rotation.y = -Math.PI / 2;               // local +X → world +Z (south, the front window)
+  g.position.copy(P(2.25, 0, T + 0.60 + 0.36));
   g.name = 'woman';
   F.add(g);
 }
@@ -718,10 +728,10 @@ const LABELS = [
   { t: 'Bottles in clay, 0.40', p: [7.02, ringTop(2.5) + 0.2, 2.5] },
   { t: 'Veranda edge 2.40', p: [7.5, 2.40, -2.0] },
   { t: '2.10 clear', p: [5.2, 1.4, -1.925] },
-  { t: 'Counter 0.90', p: [1.10, 0.92, 3.4] },
+  { t: 'Counter 0.90', p: [3.1, 0.92, 1.1] },
   { t: 'Bed platform 0.55', p: [5.0, 0.58, 2.4] },
-  { t: 'Chesterfield', p: [1.44, 0.85, 1.35] },
-  { t: 'Person 1.68', p: [1.46, 1.72, 2.5] },
+  { t: 'Chesterfield', p: [1.36, 0.85, 3.2] },
+  { t: 'Person 1.68', p: [2.25, 1.72, 1.46] },
   { t: 'Glulam purlin 160 × 280', p: [3.5, u(2.5) - 0.3, 2.5] },
 ];
 function buildHud() {
@@ -842,8 +852,8 @@ const VIEWS = [
   { name: 'Roof and PV from above', sub: '', cam: [3.5, 14, 5], t: [3.5, 2.5, -2.0] },
   { name: 'Inside: look at the purlin and bottles', walk: [5.6, 4.0, -2.35, 0.32] },
   { name: 'Inside: west window', walk: [5.4, 2.5, -1.57, 0.05] },
-  { name: 'Inside: kitchen sink', walk: [4.3, 3.9, -2.05, -0.08] },
-  { name: 'Inside: whole room', walk: [6.25, 0.75, -0.86, -0.2] },
+  { name: 'Inside: kitchen at the front window', walk: [3.0, 3.6, 3.35, -0.12] },
+  { name: 'Inside: whole room', sub: 'Kitchen, Chesterfield, bed', cam: [6.35, 2.5, -0.62], t: [2.0, 0.6, -2.4] },
   { name: 'Veranda: walk to the door', walk: [3.95, -4.0, 0, 0.02] },
 ];
 function flyTo(cam, t, dur = 0.8) {
